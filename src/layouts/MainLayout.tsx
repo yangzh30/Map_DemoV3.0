@@ -21,7 +21,7 @@ export default function MainLayout() {
     <div className="main-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-logo"><img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} /></div>
+          <div className="sidebar-logo"><img src={import.meta.env.BASE_URL + 'logo.png'} alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} /></div>
           <div className="sidebar-brand-text">
             <span className="sidebar-brand-name">销售智能体</span>
             <span className="sidebar-brand-sub">Lenovo SMB</span>

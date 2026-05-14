@@ -114,7 +114,7 @@ function ShanghaiMap() {
     if (!containerRef.current) return
 
     const fetchAndInit = async () => {
-      const resp = await fetch('/data/上海市.geojson')
+      const resp = await fetch(import.meta.env.BASE_URL + 'data/上海市.geojson')
       const geoJson = await resp.json()
       echarts.registerMap('shanghai', geoJson)
 

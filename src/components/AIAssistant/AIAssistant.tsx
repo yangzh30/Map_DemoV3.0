@@ -455,7 +455,7 @@ export default function AIAssistant() {
       {/* Floating Button */}
       {!isOpen && (
         <button className="ai-floating-btn" onClick={() => setIsOpen(true)} title="AI助手">
-          <img src="/logo.png" alt="AI" className="ai-floating-icon" />
+          <img src={import.meta.env.BASE_URL + 'logo.png'} alt="AI" className="ai-floating-icon" />
         </button>
       )}
 
@@ -464,7 +464,7 @@ export default function AIAssistant() {
         <div className="ai-floating-panel" ref={panelRef}>
           <div className="ai-floating-header">
             <div className="ai-floating-header-left">
-              <img src="/logo.png" alt="AI" className="ai-floating-header-icon" />
+              <img src={import.meta.env.BASE_URL + 'logo.png'} alt="AI" className="ai-floating-header-icon" />
               <div>
                 <div className="ai-floating-title">🤖 AI 助手</div>
                 <div className="ai-floating-subtitle">智能销售助理</div>
