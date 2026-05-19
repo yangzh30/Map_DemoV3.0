@@ -565,3 +565,27 @@
   background: var(--bg-body);
   color: var(--text-muted);
 }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.filter-input {
+  flex: 1; padding: 6px 10px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg-body); color: var(--text-primary); font-size: 12px;
+}
+.filter-input:focus { outline: none; border-color: var(--accent); }
+.filter-select {
+  padding: 6px 10px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg-body); color: var(--text-primary); font-size: 12px; cursor: pointer;
+}
+.filter-select:focus { outline: none; border-color: var(--accent); }
+
+/* Scrollable list */
+.scrollable-list {
+  max-height: 320px; overflow-y: auto; padding-right: 4px;
+}
+.scrollable-list::-webkit-scrollbar { width: 4px; }
+.scrollable-list::-webkit-scrollbar-track { background: transparent; }
+.scrollable-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Drill modal */
+.drill-modal { width: 640px; max-width: 92vw; }

@@ -263,3 +263,6 @@
 .top-name { font-weight: 500; }
 .top-sub { font-size: 11px; color: var(--text-muted); }
 .top-val { font-weight: 600; font-size: 14px; }
+
+/* Drill-down modal overrides */
+.drill-modal { width: 720px; max-width: 92vw; }

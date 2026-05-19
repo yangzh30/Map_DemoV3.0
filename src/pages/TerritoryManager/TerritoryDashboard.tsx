@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import * as echarts from 'echarts'
 import {
   mockTwoAssociations as _assocData, mockChannelPartners as _partnerData,
   mockVisits as _mockVisitsData, mockTasks as _mockTasksData,
-  mockCpsIndicators, mockPartnerVisits,
+  mockPartnerVisits,
 } from '../../data/mockData'
-import type { PartnerVisit, VisitItem } from '../../types'
+import type { PartnerVisit, VisitItem, TwoAssociationsItem, ChannelPartner, TaskItem } from '../../types'
 import AIAssistant from '../../components/AIAssistant/AIAssistant'
 import './TerritoryDashboard.css'
 
@@ -90,6 +90,68 @@ const b4Customers: {
   { id: 'B4-031', name: '上海友谊集团股份有限公司', industry: '商业', potential: '中', currentRevenue: 98, potentialRevenue: 410, lastContact: '2026-04-06', status: '跟进中', owner: '黄俊', nextAction: '商务洽谈' },
   { id: 'B4-032', name: '上海第一百货商店股份', industry: '商业', potential: '中', currentRevenue: 115, potentialRevenue: 440, lastContact: '2026-04-05', status: '谈判中', owner: '黄俊', nextAction: '合同准备' },
 ]
+
+// Drill-down data types
+type DrillLevel = 'assoc' | 'partner' | 'visit' | 'task'
+interface DrillState {
+  open: boolean
+  level: DrillLevel
+  title: string
+  data: any
+}
+
+// Mock drill-down data generators
+function getAssocMembers(assocId: string) {
+  const members: { id: string; name: string; industry: string; contact: string; potential: string; status: string }[] = [
+    { id: 'M-001', name: '中芯国际集成电路', industry: '半导体', contact: '黄总 138****1234', potential: '高', status: '已合作' },
+    { id: 'M-002', name: '韦尔股份', industry: '芯片设计', contact: '马总 186****5678', potential: '高', status: '洽谈中' },
+    { id: 'M-003', name: '华勤技术', industry: 'ODM', contact: '赵总监 139****9012', potential: '高', status: '已合作' },
+    { id: 'M-004', name: '盛美半导体', industry: '半导体设备', contact: '王总 138****6789', potential: '中', status: '待跟进' },
+    { id: 'M-005', name: '芯原股份', industry: '芯片设计服务', contact: '陈总 139****4567', potential: '中', status: '已合作' },
+    { id: 'M-006', name: '上海微电子', industry: '光刻设备', contact: '林主任 136****0123', potential: '高', status: '洽谈中' },
+    { id: 'M-007', name: '安集微电子', industry: '半导体材料', contact: '赵总监 177****3456', potential: '中', status: '待跟进' },
+    { id: 'M-008', name: '智元机器人', industry: '具身智能', contact: '李经理 186****8901', potential: '低', status: '待跟进' },
+  ]
+  return members.filter((_, i) => (assocId.charCodeAt(assocId.length - 1) + i) % 3 !== 0).slice(0, 5 + (assocId.charCodeAt(assocId.length - 1) % 4))
+}
+
+function getPartnerOrders(partnerId: string) {
+  const orders: { id: string; product: string; quantity: number; amount: number; status: string; date: string }[] = [
+    { id: 'E011847924', product: 'ThinkPad X1 Carbon Gen 12', quantity: 50, amount: 625000, status: '排产中', date: '2026-05-01' },
+    { id: 'E012498733', product: 'ThinkPad T14 Gen 6 + 扩展坞', quantity: 80, amount: 1120000, status: '生产中', date: '2026-04-25' },
+    { id: 'E012320880', product: 'ThinkSystem SR650 V3 + 存储', quantity: 8, amount: 1860000, status: '运输中', date: '2026-04-28' },
+    { id: 'E011596720', product: 'ThinkCentre M75q Gen5', quantity: 200, amount: 960000, status: '已签收', date: '2026-04-20' },
+    { id: 'E011596719', product: 'ThinkBook 16 G7+', quantity: 30, amount: 255000, status: '排产中', date: '2026-05-02' },
+    { id: 'E011596704', product: 'ThinkSystem SD530 V4', quantity: 20, amount: 2800000, status: '待排产', date: '2026-05-04' },
+  ]
+  return orders.filter((_, i) => (partnerId.charCodeAt(partnerId.length - 1) + i) % 2 === 0).slice(0, 3 + (partnerId.charCodeAt(partnerId.length - 1) % 3))
+}
+
+function getPartnerTasks(partnerId: string): TaskItem[] {
+  const allTasks: TaskItem[] = [
+    { id: 'T-001', content: '完成中芯国际需求调研报告', priority: '高', dueDate: '2026-05-08', status: '待处理', relatedCompany: '中芯国际' },
+    { id: 'T-002', content: '提交浦发银行投标文件', priority: '高', dueDate: '2026-05-13', status: '处理中', relatedCompany: '浦发银行' },
+    { id: 'T-003', content: '审核伟仕佳杰金牌升级材料', priority: '中', dueDate: '2026-05-10', status: '待处理', relatedCompany: '伟仕佳杰' },
+    { id: 'T-004', content: '跟进华勤技术数据中心方案报价', priority: '高', dueDate: '2026-05-09', status: '处理中', relatedCompany: '华勤技术' },
+    { id: 'T-005', content: '更新上海市软件行业协会会员联系名录', priority: '低', dueDate: '2026-05-15', status: '待处理' },
+    { id: 'T-006', content: '处理上海翎云科技注册伙伴激活流程', priority: '中', dueDate: '2026-05-08', status: '待处理', relatedCompany: '上海翎云科技' },
+    { id: 'T-007', content: '神州数码季度对账确认', priority: '中', dueDate: '2026-05-12', status: '处理中', relatedCompany: '神州数码' },
+    { id: 'T-008', content: '联强国际承载率提升方案制定', priority: '高', dueDate: '2026-05-11', status: '待处理', relatedCompany: '联强国际' },
+  ]
+  return allTasks.filter((_, i) => (partnerId.charCodeAt(partnerId.length - 1) + i) % 3 !== 0).slice(0, 3)
+}
+
+function getPartnerVisits(partnerId: string): VisitItem[] {
+  const allVisits: VisitItem[] = [
+    { id: 'V-001', companyName: '中芯国际', contact: '黄总', purpose: '初次拜访，介绍联想ThinkSystem服务器方案', date: '2026-05-07', time: '09:30', status: '待拜访', address: '浦东新区张江路18号' },
+    { id: 'V-002', companyName: '韦尔股份', contact: '马总', purpose: '智慧工厂项目需求深化沟通', date: '2026-05-07', time: '14:00', status: '待拜访', address: '浦东新区张江高科技园区' },
+    { id: 'V-003', companyName: '华勤技术', contact: '赵总监', purpose: '数据中心二期扩容方案汇报', date: '2026-05-08', time: '10:00', status: '待拜访', address: '浦东新区科苑路399号' },
+    { id: 'V-004', companyName: '神州数码', contact: '周总', purpose: '季度业务回顾及下季度订货计划', date: '2026-05-06', time: '15:30', status: '已拜访', address: '浦东新区世纪大道88号' },
+    { id: 'V-005', companyName: '芯原股份', contact: '赵总监', purpose: '芯片设计EDA平台IT设备需求调研', date: '2026-05-09', time: '09:00', status: '待拜访', address: '浦东新区松涛路560号' },
+    { id: 'V-006', companyName: '上海金陵网络', contact: '姚经理', purpose: '政府集采项目合作洽谈', date: '2026-05-10', time: '10:00', status: '待拜访', address: '浦东新区张杨路550号' },
+  ]
+  return allVisits.filter((_, i) => (partnerId.charCodeAt(partnerId.length - 1) + i) % 2 === 0).slice(0, 3)
+}
 
 function markerColor(status: string): string {
   if (status === '已签约') return '#22c55e'
@@ -309,80 +371,63 @@ function levelClass(level: string) {
   }
 }
 
+// Partner to district manager mapping
+const partnerDistrictMap: Record<string, { district: string; manager: string }> = {
+  'CH-001': { district: '浦东辖区', manager: '张经理' },
+  'CH-002': { district: '徐汇辖区', manager: '王经理' },
+  'CH-003': { district: '杨浦辖区', manager: '陈经理' },
+  'CH-004': { district: '静安辖区', manager: '赵经理' },
+  'CH-005': { district: '闵行辖区', manager: '刘经理' },
+  'CH-006': { district: '长宁辖区', manager: '孙经理' },
+  'CH-007': { district: '普陀辖区', manager: '周经理' },
+  'CH-008': { district: '虹口辖区', manager: '吴经理' },
+  'CH-009': { district: '宝山辖区', manager: '郑经理' },
+  'CH-010': { district: '松江辖区', manager: '钱经理' },
+  'CH-011': { district: '浦东辖区', manager: '张经理' },
+  'CH-012': { district: '徐汇辖区', manager: '王经理' },
+  'CH-013': { district: '杨浦辖区', manager: '陈经理' },
+  'CH-014': { district: '静安辖区', manager: '赵经理' },
+  'CH-015': { district: '闵行辖区', manager: '刘经理' },
+  'CH-016': { district: '长宁辖区', manager: '孙经理' },
+  'CH-017': { district: '普陀辖区', manager: '周经理' },
+  'CH-018': { district: '虹口辖区', manager: '吴经理' },
+  'CH-019': { district: '宝山辖区', manager: '郑经理' },
+  'CH-020': { district: '松江辖区', manager: '钱经理' },
+}
+
 export default function TerritoryDashboard() {
-  const [visitModal, setVisitModal] = useState<PartnerVisit | null>(null)
   const [recordModal, setRecordModal] = useState<VisitItem | null>(null)
   const [visitNotes, setVisitNotes] = useState('')
   const [visitLoading, setVisitLoading] = useState(false)
   const [visitResult, setVisitResult] = useState<{ summary: string; nextPlan: string } | null>(null)
   const [visits, setVisits] = useState(_mockVisitsData)
   const [tasks, setTasks] = useState(_mockTasksData)
-  const [assocData, setAssocData] = useState(_assocData)
-  const [partnerData, setPartnerData] = useState(_partnerData)
-  const [assocRatio, setAssocRatio] = useState(0.31)
-  const [visitRatio, setVisitRatio] = useState(0.5)
-  const [cpsSize, setCpsSize] = useState<{ w: number; h: number } | null>(null)
+  const [assocData] = useState(_assocData)
+  const [partnerData] = useState(_partnerData)
+  const [assocFilter, setAssocFilter] = useState<string>('全部')
+  const [assocSearch, setAssocSearch] = useState('')
+  const [partnerFilter, setPartnerFilter] = useState<string>('全部')
+  const [partnerSearch, setPartnerSearch] = useState('')
   const [b4IndustryFilter, setB4IndustryFilter] = useState('全部')
   const [b4PotentialFilter, setB4PotentialFilter] = useState('全部')
   const [b4Search, setB4Search] = useState('')
-  const drapRef = useRef<string | null>(null)
-  const assocRowRef = useRef<HTMLDivElement>(null)
-  const visitRowRef = useRef<HTMLDivElement>(null)
-  const cpsRef = useRef<HTMLDivElement>(null)
-  const cpsStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
 
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (cpsStartRef.current) {
-        const dx = e.clientX - cpsStartRef.current.x
-        const dy = e.clientY - cpsStartRef.current.y
-        const w = Math.max(280, cpsStartRef.current.w + dx)
-        const h = Math.max(40, cpsStartRef.current.h + dy)
-        setCpsSize({ w, h })
-        return
-      }
-      if (!drapRef.current) return
-      const rowRef = drapRef.current === 'assoc' ? assocRowRef.current : visitRowRef.current
-      if (!rowRef) return
-      const rect = rowRef.getBoundingClientRect()
-      const offset = e.clientX - rect.left
-      const ratio = Math.max(0.15, Math.min(0.75, offset / rect.width))
-      if (drapRef.current === 'assoc') setAssocRatio(ratio)
-      else setVisitRatio(ratio)
-    }
-    const onMouseUp = () => {
-      drapRef.current = null
-      cpsStartRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-    return () => { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp) }
-  }, [])
+  // Drill-down modal state
+  const [drill, setDrill] = useState<DrillState>({ open: false, level: 'assoc', title: '', data: null })
 
-  const startDrag = useCallback((rowId: string) => (e: React.MouseEvent) => {
-    e.preventDefault()
-    drapRef.current = rowId
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
-
-  const startCpsDrag = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!cpsRef.current) return
-    const rect = cpsRef.current.getBoundingClientRect()
-    cpsStartRef.current = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height }
-    document.body.style.cursor = 'nwse-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
-
-  const setVisitModalForRecord = (visit: VisitItem) => {
-    setRecordModal(visit)
-    setVisitNotes('')
-    setVisitResult(null)
+  const openAssocDrill = (assoc: TwoAssociationsItem) => {
+    setDrill({ open: true, level: 'assoc', title: assoc.name, data: assoc })
   }
+  const openPartnerDrill = (partner: ChannelPartner) => {
+    setDrill({ open: true, level: 'partner', title: partner.name, data: partner })
+  }
+  const openVisitDrill = (visit: PartnerVisit) => {
+    setDrill({ open: true, level: 'visit', title: `${visit.partnerName} · 拜访记录`, data: visit })
+  }
+  const openTaskDrill = (task: TaskItem) => {
+    setDrill({ open: true, level: 'task', title: '任务详情', data: task })
+  }
+  const closeDrill = () => setDrill(prev => ({ ...prev, open: false }))
 
   const handleVisitRecord = async () => {
     if (!visitNotes.trim() || !recordModal) return
@@ -400,8 +445,6 @@ export default function TerritoryDashboard() {
     setRecordModal(null)
   }
 
-  const indicators = mockCpsIndicators
-
   const filteredB4Customers = b4Customers.filter(c => {
     const industryMatch = b4IndustryFilter === '全部' || c.industry === b4IndustryFilter
     const potentialMatch = b4PotentialFilter === '全部' || c.potential === b4PotentialFilter
@@ -409,11 +452,17 @@ export default function TerritoryDashboard() {
     return industryMatch && potentialMatch && searchMatch
   })
 
-  const rate = (actual: number, target: number) => Math.round((actual / target) * 100)
-  const progressWidth = (actual: number, target: number) => Math.min(100, (actual / target) * 100)
+  const filteredAssocs = assocData.filter(a => {
+    if (assocFilter !== '全部' && a.status !== assocFilter) return false
+    if (assocSearch && !a.name.includes(assocSearch)) return false
+    return true
+  })
 
-  const totalWeight = indicators.reduce((s, i) => s + i.weight, 0)
-  const cpsScore = indicators.reduce((s, i) => s + rate(i.actual, i.target) * i.weight, 0) / totalWeight
+  const filteredPartners = partnerData.filter(p => {
+    if (partnerFilter !== '全部' && p.level !== partnerFilter) return false
+    if (partnerSearch && !p.name.includes(partnerSearch)) return false
+    return true
+  })
 
   const getPartnerVisit = (partnerId: string): PartnerVisit | undefined => {
     return mockPartnerVisits.find(v => v.partnerId === partnerId)
@@ -452,31 +501,6 @@ export default function TerritoryDashboard() {
           <h2>您好，黄俊</h2>
           <p>华东战区 | 上海 | 2026年5月9日 周六</p>
         </div>
-        <div
-          className="dash-cps-summary"
-          ref={cpsRef}
-          style={cpsSize ? { width: cpsSize.w, height: cpsSize.h, maxWidth: 'none', flex: 'none' } : undefined}
-        >
-          <div className="cps-summary-inner">
-            <div className="cps-summary-col">
-              <div className="cps-summary-label">总CPS达成率</div>
-              <div className="cps-summary-value" style={{ color: cpsScore >= 100 ? 'var(--success)' : cpsScore >= 85 ? 'var(--brand-600)' : 'var(--danger)' }}>{cpsScore.toFixed(1)}%</div>
-            </div>
-            <div className="cps-summary-divider" />
-            <div className="cps-summary-col">
-              <div className="cps-summary-label">当季REV/CA目标及达成</div>
-              <div className="cps-summary-value" style={{ color: 'var(--success)' }}>¥5,820万 / ¥6,500万</div>
-              <div className="cps-summary-sub">达成率 89.5%</div>
-            </div>
-            <div className="cps-summary-divider" />
-            <div className="cps-summary-col">
-              <div className="cps-summary-label">团队内排名</div>
-              <div className="cps-summary-value" style={{ color: 'var(--brand-600)' }}>🥈 华东战区第2</div>
-              <div className="cps-summary-sub">全国 12/86</div>
-            </div>
-          </div>
-          <div className="cps-resize-handle" onMouseDown={startCpsDrag} />
-        </div>
       </div>
 
       <div className="map-indicators-row">
@@ -484,71 +508,58 @@ export default function TerritoryDashboard() {
           <ShanghaiMap />
         </div>
         <div className="indicators-col">
-          <div className="indicators-stack">
-            {indicators.map(ind => {
-              const pct = rate(ind.actual, ind.target)
-              const isAchieved = ind.actual >= ind.target
-              return (
-                <div key={ind.key} className={`indicator-mini-card ${!isAchieved ? 'behind' : ''}`}>
-                  <div className="indicator-mini-header">
-                    <span className="indicator-mini-label">{ind.label}</span>
-                    <span className={`indicator-mini-rank ${isAchieved ? 'rank-ok' : 'rank-warn'}`}>🏆 {ind.rank}</span>
-                  </div>
-                  <div className="indicator-mini-body">
-                    <div className={`indicator-mini-actual ${!isAchieved ? 'actual-warn' : ''}`}>
-                      {ind.actual}<span className="indicator-mini-unit">{ind.unit}</span>
-                    </div>
-                    <div className="indicator-mini-goal">目标 {ind.target}{ind.unit}</div>
-                    <div className="indicator-mini-rate">
-                      <span className={`indicator-mini-rate-val ${!isAchieved ? 'rate-warn' : ''}`}>{pct}%</span>
-                      <span className={`indicator-mini-trend ${ind.trend}`}>{ind.trend === 'up' ? '▲' : '▼'} {ind.trendValue}</span>
-                    </div>
-                  </div>
-                  <div className="indicator-mini-progress">
-                    <div className={`indicator-mini-progress-fill ${!isAchieved ? 'fill-warn' : ''}`} style={{ width: `${progressWidth(ind.actual, ind.target)}%` }} />
-                  </div>
+          <div className="assoc-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="section-card-top">
+              <span className="section-card-title">两会一园</span>
+              <span className="leads-card-count">共 {filteredAssocs.length} 家</span>
+            </div>
+            <div className="filter-bar">
+              <input className="filter-input" placeholder="搜索名称..." value={assocSearch} onChange={e => setAssocSearch(e.target.value)} />
+              <select className="filter-select" value={assocFilter} onChange={e => setAssocFilter(e.target.value)}>
+                <option value="全部">全部状态</option>
+                <option value="已签约">已签约</option>
+                <option value="洽谈中">洽谈中</option>
+                <option value="待开发">待开发</option>
+              </select>
+            </div>
+            <div className="scrollable-list" style={{ flex: 1 }}>
+              {filteredAssocs.map(item => (
+                <div key={item.id} className="assoc-item" onClick={() => openAssocDrill(item)} style={{ cursor: 'pointer' }}>
+                  <div className="assoc-left"><span className={`assoc-type ${item.type === '协会' ? 'type-assoc' : item.type === '商会' ? 'type-chamber' : 'type-park'}`}>{item.type}</span><span className="assoc-name">{item.name}</span></div>
+                  <div className="assoc-right"><span>👥 {item.memberCount}家</span><span>🎯 {item.potentialCustomers}潜客</span><span className={`assoc-status ${item.status === '已签约' ? 'as-signed' : item.status === '洽谈中' ? 'as-negotiating' : 'as-pending'}`}>{item.status}</span></div>
                 </div>
-              )
-            })}
-            <div className="action-suggest-card">
-              <div className="action-suggest-title">⚡ 行动建议</div>
-              <div className="action-suggest-list">
-                {indicators.map((ind, i) => (
-                  <div key={ind.key} className="action-suggest-item">
-                    <span className="action-suggest-num">{i + 1}</span>
-                    <span className="action-suggest-text">{ind.topAction}</span>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="row-assoc-partner" ref={assocRowRef} style={{ gridTemplateColumns: `${assocRatio * 100}% 10px 1fr` }}>
-        <div className="assoc-section">
-          <div className="section-card-top"><span className="section-card-title">两会一园</span><span className="leads-card-count">共 {assocData.length} 家</span></div>
-          <div className="assoc-list">
-            {assocData.map(item => (
-              <div key={item.id} className="assoc-item">
-                <div className="assoc-left"><span className={`assoc-type ${item.type === '协会' ? 'type-assoc' : item.type === '商会' ? 'type-chamber' : 'type-park'}`}>{item.type}</span><span className="assoc-name">{item.name}</span></div>
-                <div className="assoc-right"><span>👥 {item.memberCount}家</span><span>🎯 {item.potentialCustomers}潜客</span><span className={`assoc-status ${item.status === '已签约' ? 'as-signed' : item.status === '洽谈中' ? 'as-negotiating' : 'as-pending'}`}>{item.status}</span></div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="resize-handle" onMouseDown={startDrag('assoc')} />
+      <div className="row-assoc-partner" style={{ gridTemplateColumns: '1fr' }}>
         <div className="partner-section">
-          <div className="section-card-top"><span className="section-card-title">联想伙伴</span><span className="leads-card-count">共 {partnerData.length} 家</span></div>
+          <div className="section-card-top">
+            <span className="section-card-title">联想伙伴</span>
+            <span className="leads-card-count">共 {filteredPartners.length} 家</span>
+          </div>
+          <div className="filter-bar">
+            <input className="filter-input" placeholder="搜索伙伴名称..." value={partnerSearch} onChange={e => setPartnerSearch(e.target.value)} />
+            <select className="filter-select" value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)}>
+              <option value="全部">全部等级</option>
+              <option value="钻石">钻石</option>
+              <option value="金牌">金牌</option>
+              <option value="银牌">银牌</option>
+              <option value="铜牌">铜牌</option>
+              <option value="注册">注册</option>
+            </select>
+          </div>
           <div className="partner-table-wrapper">
             <table className="partner-table">
               <thead><tr><th>伙伴名称</th><th>等级</th><th>月STI</th><th>锁定率</th><th>承载率</th><th>状态</th><th>拜访情况</th><th>最近拜访</th></tr></thead>
               <tbody>
-                {partnerData.map(p => {
+                {filteredPartners.map(p => {
                   const visit = getPartnerVisit(p.id)
                   return (
                     <tr key={p.id}>
-                      <td><span className="partner-name-link">{p.name}</span></td>
+                      <td><span className="partner-name-link" onClick={() => openPartnerDrill(p)}>{p.name}</span></td>
                       <td><span className={`partner-lvl lvl-${levelClass(p.level)}`}>{p.level}</span></td>
                       <td>{p.monthlySTI}台</td>
                       <td>{p.lockRate}%</td>
@@ -557,7 +568,7 @@ export default function TerritoryDashboard() {
                       <td><span className={`partner-visit-status ${getPartnerVisitStatusClass(visit)}`}>{getPartnerVisitStatus(visit)}</span></td>
                       <td>
                         {visit ? (
-                          <span className="partner-visit-link" onClick={() => setVisitModal(visit)}>{visit.visitDate}</span>
+                          <span className="partner-visit-link" onClick={() => openVisitDrill(visit)}>{visit.visitDate}</span>
                         ) : (
                           <span className="partner-visit-none">—</span>
                         )}
@@ -567,39 +578,6 @@ export default function TerritoryDashboard() {
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="row-2col" ref={visitRowRef} style={{ gridTemplateColumns: `${visitRatio * 100}% 10px 1fr` }}>
-        <div className="section-card">
-          <div className="section-card-top">
-            <span className="section-card-title">📅 拜访提醒</span>
-            <span className="triple-card-badge">{visits.filter(v => v.status === '待拜访').length}条待拜访</span>
-          </div>
-          <div className="triple-list">
-            {visits.map(v => (
-              <div key={v.id} className="triple-item" onClick={() => v.status === '待拜访' && setVisitModalForRecord(v)} style={{ cursor: v.status === '待拜访' ? 'pointer' : 'default' }}>
-                <div className="triple-item-top"><span className="triple-item-name">{v.companyName}</span><span className={`triple-item-tag ${v.status === '待拜访' ? 'tag-visit-pending' : 'tag-visit-done'}`}>{v.status}</span></div>
-                <div className="triple-item-sub">{v.purpose}</div>
-                <div className="triple-item-meta"><span>{v.date} {v.time}</span><span>📍 {v.address.slice(0, 16)}...</span></div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="resize-handle" onMouseDown={startDrag('visit')} />
-        <div className="section-card">
-          <div className="section-card-top">
-            <span className="section-card-title">📝 任务提醒</span>
-            <span className="triple-card-badge">{tasks.filter(t => t.status !== '已完成').length}条待办</span>
-          </div>
-          <div className="triple-list">
-            {tasks.map(t => (
-              <div key={t.id} className="triple-item">
-                <div className="triple-item-top"><span className="triple-item-name">{t.content}</span><span className={`triple-item-tag ${t.priority === '高' ? 'tag-task-high' : t.priority === '中' ? 'tag-task-mid' : 'tag-task-low'}`}>{t.priority}</span></div>
-                <div className="triple-item-meta"><span>截止: {t.dueDate}</span><span>{t.status}</span>{t.relatedCompany && <span>🏢 {t.relatedCompany}</span>}</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -665,27 +643,235 @@ export default function TerritoryDashboard() {
 
       <AIAssistant />
 
-      {visitModal && (
-        <div className="modal-overlay" onClick={() => setVisitModal(null)}>
-          <div className="visit-modal" onClick={e => e.stopPropagation()}>
+      {/* Unified Drill-down Modal */}
+      {drill.open && (
+        <div className="modal-overlay" onClick={closeDrill}>
+          <div className="visit-modal drill-modal" onClick={e => e.stopPropagation()}>
             <div className="visit-modal-head">
-              <span className="visit-modal-title">{visitTypeIcon(visitModal.visitType)} {visitModal.partnerName} · 拜访纪要</span>
-              <button className="modal-close" onClick={() => setVisitModal(null)}>✕</button>
+              <span className="visit-modal-title">{drill.title}</span>
+              <button className="modal-close" onClick={closeDrill}>✕</button>
             </div>
             <div className="visit-modal-body">
-              <div className="visit-modal-meta">
-                <div className="visit-modal-meta-item"><span className="vm-label">拜访日期</span><span className="vm-value">{visitModal.visitDate}</span></div>
-                <div className="visit-modal-meta-item"><span className="vm-label">拜访类型</span><span className="vm-value">{visitModal.visitType}</span></div>
-                <div className="visit-modal-meta-item"><span className="vm-label">参与人员</span><span className="vm-value">{visitModal.attendees}</span></div>
-              </div>
-              <div className="visit-modal-section">
-                <div className="visit-modal-section-title">📋 拜访摘要</div>
-                <div className="visit-modal-section-content">{visitModal.summary}</div>
-              </div>
-              <div className="visit-modal-section">
-                <div className="visit-modal-section-title">📌 下一步计划</div>
-                <div className="visit-modal-section-content">{visitModal.nextPlan}</div>
-              </div>
+              {drill.level === 'assoc' && (() => {
+                const assoc = drill.data as TwoAssociationsItem
+                const members = getAssocMembers(assoc.id)
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>类型</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.type}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>联系人</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.contactPerson}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>状态</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.status}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>会员数量</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--brand-600)' }}>{assoc.memberCount}家</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>潜客数量</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{assoc.potentialCustomers}家</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📋 会员企业清单（{members.length}家）</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {members.map(m => (
+                          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 6, fontSize: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600 }}>{m.industry}</span>
+                              <span style={{ fontWeight: 500 }}>{m.name}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)' }}>
+                              <span>{m.contact}</span>
+                              <span style={{ fontWeight: 600, color: m.potential === '高' ? 'var(--danger)' : m.potential === '中' ? 'var(--warning)' : 'var(--text-muted)' }}>{m.potential}潜客</span>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: m.status === '已合作' ? 'var(--success-light)' : m.status === '洽谈中' ? 'var(--warning-light)' : 'var(--bg-surface)', color: m.status === '已合作' ? 'var(--success)' : m.status === '洽谈中' ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 600 }}>{m.status}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {drill.level === 'partner' && (() => {
+                const partner = drill.data as ChannelPartner
+                const info = partnerDistrictMap[partner.id]
+                const orders = getPartnerOrders(partner.id)
+                const ptasks = getPartnerTasks(partner.id)
+                const pvisits = getPartnerVisits(partner.id)
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>等级</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{partner.level}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>所属辖区</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{info?.district || '-'}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>辖区经理</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>{info?.manager || '-'}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>状态</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{partner.status}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>月STI</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--brand-600)' }}>{partner.monthlySTI}台</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>月SO</div>
+                        <div style={{ fontSize: 18, fontWeight: 700 }}>{partner.monthlySO}台</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>锁定率</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: partner.lockRate >= 70 ? 'var(--success)' : partner.lockRate >= 60 ? 'var(--warning)' : 'var(--danger)' }}>{partner.lockRate}%</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>承载率</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: partner.attachRate >= 40 ? 'var(--success)' : partner.attachRate >= 30 ? 'var(--warning)' : 'var(--danger)' }}>{partner.attachRate}%</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📦 近期订单（{orders.length}笔）</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {orders.map(o => (
+                          <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 6, fontSize: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 500 }}>{o.product}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>×{o.quantity}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)' }}>
+                              <span style={{ fontWeight: 600 }}>¥{(o.amount / 10000).toFixed(1)}万</span>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: o.status === '已签收' ? 'var(--success-light)' : o.status === '运输中' || o.status === '生产中' ? 'var(--warning-light)' : 'var(--accent-light)', color: o.status === '已签收' ? 'var(--success)' : o.status === '运输中' || o.status === '生产中' ? 'var(--warning)' : 'var(--accent)', fontWeight: 600 }}>{o.status}</span>
+                              <span>{o.date}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📝 关联任务（{ptasks.length}条）</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {ptasks.map(t => (
+                          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 6, fontSize: 12, cursor: 'pointer' }} onClick={() => openTaskDrill(t)}>
+                            <div style={{ fontWeight: 500 }}>{t.content}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)' }}>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: t.priority === '高' ? 'var(--danger-light)' : t.priority === '中' ? 'var(--warning-light)' : 'var(--bg-surface)', color: t.priority === '高' ? 'var(--danger)' : t.priority === '中' ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 600 }}>{t.priority}</span>
+                              <span>截止：{t.dueDate}</span>
+                              <span>{t.status}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>🚶 拜访提醒（{pvisits.length}条）</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {pvisits.map(v => (
+                          <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 6, fontSize: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 500 }}>{v.companyName}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{v.contact}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)' }}>
+                              <span>{v.purpose}</span>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: v.status === '已拜访' ? 'var(--success-light)' : 'var(--accent-light)', color: v.status === '已拜访' ? 'var(--success)' : 'var(--accent)', fontWeight: 600 }}>{v.status}</span>
+                              <span>{v.date} {v.time}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {drill.level === 'visit' && (() => {
+                const visit = drill.data as PartnerVisit
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>拜访日期</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{visit.visitDate}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>拜访类型</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{visit.visitType}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>参与人员</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{visit.attendees}</div>
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--bg-body)', padding: 16, borderRadius: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📋 拜访摘要</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{visit.summary}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-body)', padding: 16, borderRadius: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📌 下一步计划</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{visit.nextPlan}</div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {drill.level === 'task' && (() => {
+                const task = drill.data as TaskItem
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ background: 'var(--bg-body)', padding: 16, borderRadius: 8 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>任务内容</div>
+                      <div style={{ fontSize: 16, fontWeight: 700 }}>{task.content}</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>优先级</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: task.priority === '高' ? 'var(--danger)' : task.priority === '中' ? 'var(--warning)' : 'var(--text-muted)' }}>{task.priority}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>截止日期</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{task.dueDate}</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>状态</div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{task.status}</div>
+                      </div>
+                    </div>
+                    {task.relatedCompany && (
+                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>关联企业</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>{task.relatedCompany}</div>
+                      </div>
+                    )}
+                    <div style={{ background: 'var(--bg-body)', padding: 16, borderRadius: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📋 任务说明</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                        该任务由辖区经理于本周创建，需在规定时间内完成并提交相关报告。请确保与相关渠道商保持密切沟通，按时推进任务进度。如有困难请及时上报战区协调资源。
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>
