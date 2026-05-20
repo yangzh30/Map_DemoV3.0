@@ -259,38 +259,6 @@
 .as-negotiating { background: var(--warning-light); color: var(--warning); }
 .as-pending { background: var(--bg-body); color: var(--text-muted); }
 
-/* New compact association item layout */
-.assoc-item-new {
-  padding: var(--space-sm) var(--space-md); border-radius: var(--radius);
-  font-size: 12px; transition: background 150ms var(--ease-out);
-  background: var(--bg-body);
-}
-.assoc-item-new:hover { background: var(--accent-subtle); }
-.assoc-item-new-row1 {
-  display: flex; align-items: center; gap: var(--space-sm);
-  margin-bottom: 3px;
-}
-.assoc-item-new-row2 {
-  display: flex; align-items: center; gap: var(--space-lg);
-  font-size: 11px; color: var(--text-secondary);
-}
-.assoc-name-link {
-  font-weight: 600; color: var(--accent); cursor: pointer;
-  transition: color 150ms; font-size: 12px;
-}
-.assoc-name-link:hover { color: var(--accent-hover); text-decoration: underline; }
-.assoc-company-count {
-  font-weight: 600; color: var(--brand-600); cursor: pointer;
-  font-size: 11px; white-space: nowrap;
-}
-.assoc-company-count:hover { text-decoration: underline; }
-.assoc-item-info {
-  display: flex; align-items: center; gap: 2px;
-  font-size: 11px; color: var(--text-secondary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 200px;
-}
-
 .partner-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .partner-table th {
   text-align: left; font-size: 10px; color: var(--text-muted);
