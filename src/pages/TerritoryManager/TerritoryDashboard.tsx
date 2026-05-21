@@ -1,28 +1,217 @@
 import { useState, useRef, useEffect } from 'react'
 import * as echarts from 'echarts'
 import {
-  mockTwoAssociations as _assocData, mockChannelPartners as _partnerData,
+  mockChannelPartners as _partnerData,
   mockVisits as _mockVisitsData, mockTasks as _mockTasksData,
   mockPartnerVisits,
 } from '../../data/mockData'
-import type { PartnerVisit, VisitItem, TwoAssociationsItem, ChannelPartner, TaskItem } from '../../types'
+import type { PartnerVisit, VisitItem, ChannelPartner, TaskItem } from '../../types'
 import AIAssistant from '../../components/AIAssistant/AIAssistant'
 import './TerritoryDashboard.css'
 
-const assocMarkerData: {
+interface CompanyVisitRecord {
+  id: string; visitDate: string; visitTarget: string; visitType: string;
+  attendees: string; summary: string; feedback: string; nextPlan: string;
+}
+
+interface AssocCompany {
+  id: string; cdbid: string; name: string; industry: string; mainBusiness: string;
+  businessScale: string; employeeCount: number; foundedDate: string;
+  decisionMakerName: string; decisionMakerPhone: string;
+  contactName: string; contactPhone: string;
+  isHighValue: boolean; cooperationStatus: '已合作'|'洽谈中'|'待跟进';
+  lastVisitDate: string; visitRecords: CompanyVisitRecord[];
+}
+
+type AssocMarkerEntry = {
   id: string; name: string; type: string; value: [number, number];
-  status: string; address: string; contact: string; memberCount: number;
+  status: string; address: string; contact: string; contactPhone: string; memberCount: number;
   signedPartner?: string;
-}[] = [
-  { id: 'TA-001', name: '上海软件行业协会', type: '协会', value: [121.455, 31.245], status: '洽谈中', address: '静安区江场西路299弄4号楼1205室', contact: '周会长', memberCount: 350 },
-  { id: 'TA-002', name: '浦东新区商会', type: '商会', value: [121.525, 31.225], status: '洽谈中', address: '浦东新区民生路1286号汇商大厦6楼', contact: '钱秘书长', memberCount: 500 },
-  { id: 'TA-003', name: '张江高科技园区', type: '园区', value: [121.585, 31.205], status: '待开发', address: '浦东新区张江高科技园区', contact: '郑主任', memberCount: 280 },
-  { id: 'TA-004', name: '上海人工智能协会', type: '协会', value: [121.515, 31.195], status: '洽谈中', address: '浦东新区世博村路231号306室', contact: '赵副会长', memberCount: 420 },
-  { id: 'TA-005', name: '金桥出口加工区', type: '园区', value: [121.605, 31.255], status: '待开发', address: '浦东新区金桥出口加工区', contact: '吴主任', memberCount: 380 },
-  { id: 'TA-006', name: '浦东青年商会', type: '商会', value: [121.555, 31.175], status: '待开发', address: '浦东新区纳贤路800号张江科学城', contact: '孙会长', memberCount: 200 },
-  { id: 'TA-007', name: '上海浦东软件园', type: '园区', value: [121.595, 31.185], status: '已签约', address: '浦东新区博云路2号', contact: '韩主任', memberCount: 510, signedPartner: '上海辰晔信息科技有限公司' },
-  { id: 'TA-008', name: '上海漕河泾远中产业园', type: '园区', value: [121.535, 31.265], status: '已签约', address: '浦东新区张江碧波路500号', contact: '李秘书长', memberCount: 280, signedPartner: '上海致柏商贸有限公司' },
+}
+
+const assocMarkerData: AssocMarkerEntry[] = [
+  { id: 'TA-001', name: '上海软件行业协会', type: '协会', value: [121.455, 31.245], status: '洽谈中', address: '静安区江场西路299弄4号楼1205室', contact: '周会长', contactPhone: '13800138001', memberCount: 350 },
+  { id: 'TA-002', name: '浦东新区商会', type: '商会', value: [121.525, 31.225], status: '洽谈中', address: '浦东新区民生路1286号汇商大厦6楼', contact: '钱秘书长', contactPhone: '13800138002', memberCount: 500 },
+  { id: 'TA-003', name: '张江高科技园区', type: '园区', value: [121.585, 31.205], status: '待开发', address: '浦东新区张江高科技园区', contact: '郑主任', contactPhone: '13800138003', memberCount: 280 },
+  { id: 'TA-004', name: '上海人工智能协会', type: '协会', value: [121.515, 31.195], status: '洽谈中', address: '浦东新区世博村路231号306室', contact: '赵副会长', contactPhone: '13800138004', memberCount: 420 },
+  { id: 'TA-005', name: '金桥出口加工区', type: '园区', value: [121.605, 31.255], status: '待开发', address: '浦东新区金桥出口加工区', contact: '吴主任', contactPhone: '13800138005', memberCount: 380 },
+  { id: 'TA-006', name: '浦东青年商会', type: '商会', value: [121.555, 31.175], status: '待开发', address: '浦东新区纳贤路800号张江科学城', contact: '孙会长', contactPhone: '13800138006', memberCount: 200 },
+  { id: 'TA-007', name: '上海浦东软件园', type: '园区', value: [121.595, 31.185], status: '已签约', address: '浦东新区博云路2号', contact: '韩主任', contactPhone: '13800138007', memberCount: 510, signedPartner: '上海辰晔信息科技有限公司' },
+  { id: 'TA-008', name: '上海漕河泾远中产业园', type: '园区', value: [121.535, 31.265], status: '已签约', address: '浦东新区张江碧波路500号', contact: '李秘书长', contactPhone: '13800138008', memberCount: 280, signedPartner: '上海致柏商贸有限公司' },
 ]
+
+function generateCompaniesForAssoc(assocId: string): AssocCompany[] {
+  const companyPool: Record<string, Omit<AssocCompany, 'visitRecords'>[]> = {
+    'TA-001': [
+      { id: 'CA-001', cdbid: 'CDB-20260001', name: '上海泛微网络科技股份有限公司', industry: '企业软件', mainBusiness: 'OA协同办公平台研发与销售', businessScale: '大型', employeeCount: 2800, foundedDate: '2001-03', decisionMakerName: '韦总', decisionMakerPhone: '13900010001', contactName: '陈经理', contactPhone: '13700010001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-06' },
+      { id: 'CA-002', cdbid: 'CDB-20260002', name: '上海汉得信息技术股份有限公司', industry: 'IT咨询', mainBusiness: '企业数字化转型与ERP实施服务', businessScale: '大型', employeeCount: 4500, foundedDate: '2002-07', decisionMakerName: '范总', decisionMakerPhone: '13900010002', contactName: '张经理', contactPhone: '13700010002', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-03' },
+      { id: 'CA-003', cdbid: 'CDB-20260003', name: '上海宝信软件股份有限公司', industry: '工业软件', mainBusiness: '钢铁行业MES与智能制造系统', businessScale: '大型', employeeCount: 3200, foundedDate: '2000-04', decisionMakerName: '夏总', decisionMakerPhone: '13900010003', contactName: '刘总监', contactPhone: '13700010003', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-004', cdbid: 'CDB-20260004', name: '上海万达信息股份有限公司', industry: '智慧城市', mainBusiness: '城市信息化与政务系统建设', businessScale: '大型', employeeCount: 5600, foundedDate: '1995-12', decisionMakerName: '胡总', decisionMakerPhone: '13900010004', contactName: '王经理', contactPhone: '13700010004', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-25' },
+      { id: 'CA-005', cdbid: 'CDB-20260005', name: '上海金仕达软件科技股份有限公司', industry: '金融科技', mainBusiness: '证券交易系统与金融风控平台', businessScale: '中型', employeeCount: 1200, foundedDate: '2008-09', decisionMakerName: '林总', decisionMakerPhone: '13900010005', contactName: '赵经理', contactPhone: '13700010005', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-22' },
+      { id: 'CA-006', cdbid: 'CDB-20260006', name: '上海南洋万邦软件技术有限公司', industry: '云计算', mainBusiness: '云迁移与云运维服务', businessScale: '中型', employeeCount: 800, foundedDate: '2012-06', decisionMakerName: '郑总', decisionMakerPhone: '13900010006', contactName: '李经理', contactPhone: '13700010006', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-05' },
+      { id: 'CA-007', cdbid: 'CDB-20260007', name: '上海新致软件股份有限公司', industry: '金融IT', mainBusiness: '银行核心系统与支付平台开发', businessScale: '中型', employeeCount: 1500, foundedDate: '2005-11', decisionMakerName: '郭总', decisionMakerPhone: '13900010007', contactName: '周经理', contactPhone: '13700010007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-15' },
+      { id: 'CA-008', cdbid: 'CDB-20260008', name: '上海普元信息技术股份有限公司', industry: '基础软件', mainBusiness: '中间件与低代码开发平台', businessScale: '中型', employeeCount: 900, foundedDate: '2003-02', decisionMakerName: '刘总', decisionMakerPhone: '13900010008', contactName: '杨总监', contactPhone: '13700010008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-10' },
+      { id: 'CA-009', cdbid: 'CDB-20260009', name: '上海电科智能系统股份有限公司', industry: '智能交通', mainBusiness: '智慧交通管理平台与信号控制系统', businessScale: '中型', employeeCount: 1100, foundedDate: '2006-08', decisionMakerName: '何总', decisionMakerPhone: '13900010009', contactName: '吴经理', contactPhone: '13700010009', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-28' },
+      { id: 'CA-010', cdbid: 'CDB-20260010', name: '上海数慧系统技术有限公司', industry: '地理信息', mainBusiness: 'GIS地理信息系统与空间大数据', businessScale: '小型', employeeCount: 450, foundedDate: '2010-03', decisionMakerName: '曹总', decisionMakerPhone: '13900010010', contactName: '孙经理', contactPhone: '13700010010', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-10' },
+    ],
+    'TA-002': [
+      { id: 'CA-011', cdbid: 'CDB-20260011', name: '上海华勤通信技术有限公司', industry: '通信设备', mainBusiness: '通信设备ODM与智能制造', businessScale: '大型', employeeCount: 12000, foundedDate: '2005-08', decisionMakerName: '邱总', decisionMakerPhone: '13900020001', contactName: '沈经理', contactPhone: '13700020001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-04' },
+      { id: 'CA-012', cdbid: 'CDB-20260012', name: '上海韦尔半导体股份有限公司', industry: '芯片设计', mainBusiness: 'CIS图像传感器设计与销售', businessScale: '大型', employeeCount: 3500, foundedDate: '2007-05', decisionMakerName: '虞总', decisionMakerPhone: '13900020002', contactName: '马经理', contactPhone: '13700020002', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-02' },
+      { id: 'CA-013', cdbid: 'CDB-20260013', name: '上海外高桥造船有限公司', industry: '船舶制造', mainBusiness: '大型船舶与海洋工程装备制造', businessScale: '大型', employeeCount: 8000, foundedDate: '1999-10', decisionMakerName: '陈总', decisionMakerPhone: '13900020003', contactName: '黄经理', contactPhone: '13700020003', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-30' },
+      { id: 'CA-014', cdbid: 'CDB-20260014', name: '上海微创医疗器械有限公司', industry: '医疗器械', mainBusiness: '心血管介入器械研发生产', businessScale: '大型', employeeCount: 4200, foundedDate: '1998-06', decisionMakerName: '常总', decisionMakerPhone: '13900020004', contactName: '曹经理', contactPhone: '13700020004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-26' },
+      { id: 'CA-015', cdbid: 'CDB-20260015', name: '上海罗氏制药有限公司', industry: '医药研发', mainBusiness: '创新药研发与商业化', businessScale: '大型', employeeCount: 3000, foundedDate: '1994-05', decisionMakerName: '徐总', decisionMakerPhone: '13900020005', contactName: '潘经理', contactPhone: '13700020005', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-20' },
+      { id: 'CA-016', cdbid: 'CDB-20260016', name: '上海锦江国际酒店股份有限公司', industry: '酒店旅游', mainBusiness: '酒店运营管理与旅游服务', businessScale: '大型', employeeCount: 6500, foundedDate: '1994-12', decisionMakerName: '张总', decisionMakerPhone: '13900020006', contactName: '蔡经理', contactPhone: '13700020006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-20' },
+      { id: 'CA-017', cdbid: 'CDB-20260017', name: '上海光明乳业股份有限公司', industry: '食品饮料', mainBusiness: '乳制品生产与销售', businessScale: '大型', employeeCount: 5500, foundedDate: '1996-09', decisionMakerName: '黄总', decisionMakerPhone: '13900020007', contactName: '谢经理', contactPhone: '13700020007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-12' },
+      { id: 'CA-018', cdbid: 'CDB-20260018', name: '上海建工一建集团有限公司', industry: '建筑工程', mainBusiness: '大型建筑工程项目总承包', businessScale: '大型', employeeCount: 7000, foundedDate: '1953-03', decisionMakerName: '李总', decisionMakerPhone: '13900020008', contactName: '魏经理', contactPhone: '13700020008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-05' },
+      { id: 'CA-019', cdbid: 'CDB-20260019', name: '上海振华重工股份有限公司', industry: '港口机械', mainBusiness: '港口集装箱起重机研发制造', businessScale: '大型', employeeCount: 6000, foundedDate: '1992-02', decisionMakerName: '朱总', decisionMakerPhone: '13900020009', contactName: '袁经理', contactPhone: '13700020009', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-05' },
+      { id: 'CA-020', cdbid: 'CDB-20260020', name: '华住酒店管理有限公司', industry: '酒店旅游', mainBusiness: '连锁酒店品牌运营与加盟管理', businessScale: '大型', employeeCount: 5000, foundedDate: '2005-03', decisionMakerName: '金总', decisionMakerPhone: '13900020010', contactName: '丁经理', contactPhone: '13700020010', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-02-28' },
+    ],
+    'TA-003': [
+      { id: 'CA-021', cdbid: 'CDB-20260021', name: '展讯通信有限公司', industry: '通信芯片', mainBusiness: '移动通信基带芯片设计', businessScale: '大型', employeeCount: 2800, foundedDate: '2001-07', decisionMakerName: '任总', decisionMakerPhone: '13900030001', contactName: '高经理', contactPhone: '13700030001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-05' },
+      { id: 'CA-022', cdbid: 'CDB-20260022', name: '格科微电子有限公司', industry: '图像传感器', mainBusiness: 'CMOS图像传感器设计制造', businessScale: '大型', employeeCount: 2000, foundedDate: '2003-09', decisionMakerName: '赵总', decisionMakerPhone: '13900030002', contactName: '吕经理', contactPhone: '13700030002', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-023', cdbid: 'CDB-20260023', name: '华虹半导体有限公司', industry: '晶圆代工', mainBusiness: '特色工艺晶圆代工服务', businessScale: '大型', employeeCount: 3500, foundedDate: '1996-04', decisionMakerName: '唐总', decisionMakerPhone: '13900030003', contactName: '施经理', contactPhone: '13700030003', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-25' },
+      { id: 'CA-024', cdbid: 'CDB-20260024', name: '上海复旦微电子集团', industry: '集成电路', mainBusiness: '安全芯片与识别芯片设计', businessScale: '中型', employeeCount: 1500, foundedDate: '1998-07', decisionMakerName: '蒋总', decisionMakerPhone: '13900030004', contactName: '韩经理', contactPhone: '13700030004', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-01' },
+      { id: 'CA-025', cdbid: 'CDB-20260025', name: '紫光展锐科技有限公司', industry: '移动芯片', mainBusiness: '5G移动通信芯片平台', businessScale: '大型', employeeCount: 5000, foundedDate: '2013-12', decisionMakerName: '楚总', decisionMakerPhone: '13900030005', contactName: '石经理', contactPhone: '13700030005', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-20' },
+      { id: 'CA-026', cdbid: 'CDB-20260026', name: '上海兆芯集成电路有限公司', industry: 'CPU设计', mainBusiness: '国产x86兼容处理器研发', businessScale: '中型', employeeCount: 1200, foundedDate: '2013-04', decisionMakerName: '叶总', decisionMakerPhone: '13900030006', contactName: '崔经理', contactPhone: '13700030006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-15' },
+      { id: 'CA-027', cdbid: 'CDB-20260027', name: '翱捷科技股份有限公司', industry: '物联网芯片', mainBusiness: '物联网通信芯片与平台方案', businessScale: '中型', employeeCount: 900, foundedDate: '2015-08', decisionMakerName: '戴总', decisionMakerPhone: '13900030007', contactName: '姜经理', contactPhone: '13700030007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-25' },
+      { id: 'CA-028', cdbid: 'CDB-20260028', name: '澜起科技股份有限公司', industry: '内存接口', mainBusiness: 'DDR内存接口芯片设计', businessScale: '中型', employeeCount: 1000, foundedDate: '2004-05', decisionMakerName: '杨总', decisionMakerPhone: '13900030008', contactName: '秦经理', contactPhone: '13700030008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-18' },
+      { id: 'CA-029', cdbid: 'CDB-20260029', name: '盛美半导体设备有限公司', industry: '半导体设备', mainBusiness: '单片晶圆清洗设备研发制造', businessScale: '中型', employeeCount: 800, foundedDate: '2005-05', decisionMakerName: '王总', decisionMakerPhone: '13900030009', contactName: '许经理', contactPhone: '13700030009', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-08' },
+      { id: 'CA-030', cdbid: 'CDB-20260030', name: '安集微电子科技有限公司', industry: '半导体材料', mainBusiness: 'CMP抛光液与光刻胶研发', businessScale: '小型', employeeCount: 500, foundedDate: '2008-02', decisionMakerName: '王总', decisionMakerPhone: '13900030010', contactName: '尤经理', contactPhone: '13700030010', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-02' },
+    ],
+    'TA-004': [
+      { id: 'CA-031', cdbid: 'CDB-20260031', name: '商汤科技开发有限公司', industry: 'AI视觉', mainBusiness: '计算机视觉与深度学习平台', businessScale: '大型', employeeCount: 4500, foundedDate: '2014-08', decisionMakerName: '徐总', decisionMakerPhone: '13900040001', contactName: '汪经理', contactPhone: '13700040001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-05' },
+      { id: 'CA-032', cdbid: 'CDB-20260032', name: '依图网络科技有限公司', industry: 'AI平台', mainBusiness: 'AI算力平台与智慧城市方案', businessScale: '大型', employeeCount: 2500, foundedDate: '2012-09', decisionMakerName: '朱总', decisionMakerPhone: '13900040002', contactName: '傅经理', contactPhone: '13700040002', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-29' },
+      { id: 'CA-033', cdbid: 'CDB-20260033', name: '云从科技集团股份有限公司', industry: '人机协同', mainBusiness: '人机协同操作系统与AI应用', businessScale: '大型', employeeCount: 2000, foundedDate: '2015-03', decisionMakerName: '周总', decisionMakerPhone: '13900040003', contactName: '钱经理', contactPhone: '13700040003', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-25' },
+      { id: 'CA-034', cdbid: 'CDB-20260034', name: '旷视科技有限公司', industry: 'AIoT', mainBusiness: 'AIoT智能物联解决方案', businessScale: '大型', employeeCount: 2800, foundedDate: '2011-10', decisionMakerName: '印总', decisionMakerPhone: '13900040004', contactName: '唐经理', contactPhone: '13700040004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-20' },
+      { id: 'CA-035', cdbid: 'CDB-20260035', name: '上海燧原科技有限公司', industry: 'AI算力', mainBusiness: '云端AI训练推理芯片', businessScale: '中型', employeeCount: 1200, foundedDate: '2018-03', decisionMakerName: '赵总', decisionMakerPhone: '13900040005', contactName: '鲍经理', contactPhone: '13700040005', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-02' },
+      { id: 'CA-036', cdbid: 'CDB-20260036', name: '上海壁仞智能科技有限公司', industry: 'GPU芯片', mainBusiness: '通用GPU芯片与AI算力卡', businessScale: '中型', employeeCount: 1500, foundedDate: '2019-09', decisionMakerName: '张总', decisionMakerPhone: '13900040006', contactName: '倪经理', contactPhone: '13700040006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-12' },
+      { id: 'CA-037', cdbid: 'CDB-20260037', name: '上海天数智芯半导体有限公司', industry: '通用GPU', mainBusiness: '通用GPU芯片与计算卡', businessScale: '中型', employeeCount: 800, foundedDate: '2020-05', decisionMakerName: '李总', decisionMakerPhone: '13900040007', contactName: '汤经理', contactPhone: '13700040007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-05' },
+      { id: 'CA-038', cdbid: 'CDB-20260038', name: '上海登临科技股份有限公司', industry: 'AI芯片', mainBusiness: '云端AI推理芯片与加速卡', businessScale: '小型', employeeCount: 400, foundedDate: '2017-11', decisionMakerName: '李总', decisionMakerPhone: '13900040008', contactName: '费经理', contactPhone: '13700040008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-20' },
+    ],
+    'TA-005': [
+      { id: 'CA-039', cdbid: 'CDB-20260039', name: '上海通用汽车有限公司', industry: '汽车制造', mainBusiness: '乘用车研发制造与销售', businessScale: '大型', employeeCount: 25000, foundedDate: '1997-06', decisionMakerName: '王总', decisionMakerPhone: '13900050001', contactName: '陆经理', contactPhone: '13700050001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-05' },
+      { id: 'CA-040', cdbid: 'CDB-20260040', name: '联合汽车电子有限公司', industry: '汽车电子', mainBusiness: '汽车发动机管理及电控系统', businessScale: '大型', employeeCount: 6000, foundedDate: '1995-12', decisionMakerName: '熊总', decisionMakerPhone: '13900050002', contactName: '孔经理', contactPhone: '13700050002', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-041', cdbid: 'CDB-20260041', name: '上海三菱电梯有限公司', industry: '电梯制造', mainBusiness: '电梯及自动扶梯研发制造', businessScale: '大型', employeeCount: 5000, foundedDate: '1987-01', decisionMakerName: '万总', decisionMakerPhone: '13900050003', contactName: '曹经理', contactPhone: '13700050003', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-04-30' },
+      { id: 'CA-042', cdbid: 'CDB-20260042', name: '上海夏普电器有限公司', industry: '家电制造', mainBusiness: '家用电器研发制造与销售', businessScale: '大型', employeeCount: 3000, foundedDate: '1992-08', decisionMakerName: '今井总', decisionMakerPhone: '13900050004', contactName: '杜经理', contactPhone: '13700050004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-22' },
+      { id: 'CA-043', cdbid: 'CDB-20260043', name: '上海贝尔企业通信有限公司', industry: '通信设备', mainBusiness: '企业级通信网络设备制造', businessScale: '大型', employeeCount: 3500, foundedDate: '1984-06', decisionMakerName: 'Rodrigo总', decisionMakerPhone: '13900050005', contactName: '薛经理', contactPhone: '13700050005', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-15' },
+      { id: 'CA-044', cdbid: 'CDB-20260044', name: '上海航天设备制造总厂', industry: '航空航天', mainBusiness: '航天器及运载火箭制造', businessScale: '大型', employeeCount: 8000, foundedDate: '1958-10', decisionMakerName: '何总', decisionMakerPhone: '13900050006', contactName: '雷经理', contactPhone: '13700050006', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-25' },
+      { id: 'CA-045', cdbid: 'CDB-20260045', name: '上海第一机床厂有限公司', industry: '机床制造', mainBusiness: '精密数控机床研发制造', businessScale: '中型', employeeCount: 1500, foundedDate: '1946-05', decisionMakerName: '程总', decisionMakerPhone: '13900050007', contactName: '贺经理', contactPhone: '13700050007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-08' },
+      { id: 'CA-046', cdbid: 'CDB-20260046', name: '上海ABB工程有限公司', industry: '工业机器人', mainBusiness: '工业机器人及自动化系统', businessScale: '大型', employeeCount: 2800, foundedDate: '1999-03', decisionMakerName: '顾总', decisionMakerPhone: '13900050008', contactName: '范经理', contactPhone: '13700050008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-28' },
+      { id: 'CA-047', cdbid: 'CDB-20260047', name: '虎伯拉铰接系统有限公司', industry: '汽车零部件', mainBusiness: '客车铰接系统制造', businessScale: '中型', employeeCount: 1000, foundedDate: '2001-06', decisionMakerName: 'Hübner总', decisionMakerPhone: '13900050009', contactName: '苗经理', contactPhone: '13700050009', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-02' },
+      { id: 'CA-048', cdbid: 'CDB-20260048', name: '华为上海研究所', industry: '通信技术', mainBusiness: '5G/6G通信技术研究', businessScale: '大型', employeeCount: 12000, foundedDate: '1996-06', decisionMakerName: '余总', decisionMakerPhone: '13900050010', contactName: '尹经理', contactPhone: '13700050010', isHighValue: true, cooperationStatus: '待跟进', lastVisitDate: '2026-04-18' },
+    ],
+    'TA-006': [
+      { id: 'CA-049', cdbid: 'CDB-20260049', name: '上海哔哩哔哩科技有限公司', industry: '视频平台', mainBusiness: '在线视频及泛娱乐平台', businessScale: '大型', employeeCount: 6000, foundedDate: '2009-06', decisionMakerName: '陈总', decisionMakerPhone: '13900060001', contactName: '顾经理', contactPhone: '13700060001', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-05-02' },
+      { id: 'CA-050', cdbid: 'CDB-20260050', name: '上海米哈游网络科技股份有限公司', industry: '游戏', mainBusiness: '移动游戏研发与全球发行', businessScale: '大型', employeeCount: 4000, foundedDate: '2011-02', decisionMakerName: '刘总', decisionMakerPhone: '13900060002', contactName: '邹经理', contactPhone: '13700060002', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-051', cdbid: 'CDB-20260051', name: '上海莉莉丝科技股份有限公司', industry: '游戏', mainBusiness: 'SLG策略手游研发与运营', businessScale: '中型', employeeCount: 1800, foundedDate: '2013-05', decisionMakerName: '王总', decisionMakerPhone: '13900060003', contactName: '侯经理', contactPhone: '13700060003', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-04' },
+      { id: 'CA-052', cdbid: 'CDB-20260052', name: '上海喜马拉雅科技有限公司', industry: '音频', mainBusiness: '在线音频内容平台', businessScale: '中型', employeeCount: 2500, foundedDate: '2012-08', decisionMakerName: '余总', decisionMakerPhone: '13900060004', contactName: '万经理', contactPhone: '13700060004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-22' },
+      { id: 'CA-053', cdbid: 'CDB-20260053', name: '小红书科技有限公司', industry: '社交电商', mainBusiness: '生活方式社区与电商平台', businessScale: '大型', employeeCount: 4500, foundedDate: '2013-06', decisionMakerName: '毛总', decisionMakerPhone: '13900060005', contactName: '段经理', contactPhone: '13700060005', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-20' },
+      { id: 'CA-054', cdbid: 'CDB-20260054', name: '上海得物信息集团有限公司', industry: '潮流电商', mainBusiness: '潮流商品鉴别与电商平台', businessScale: '中型', employeeCount: 2000, foundedDate: '2015-03', decisionMakerName: '杨总', decisionMakerPhone: '13900060006', contactName: '赖经理', contactPhone: '13700060006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-10' },
+      { id: 'CA-055', cdbid: 'CDB-20260055', name: '上海哈啰普惠科技有限公司', industry: '共享出行', mainBusiness: '共享单车与两轮电动车出行', businessScale: '大型', employeeCount: 5000, foundedDate: '2016-09', decisionMakerName: '杨总', decisionMakerPhone: '13900060007', contactName: '武经理', contactPhone: '13700060007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-05' },
+      { id: 'CA-056', cdbid: 'CDB-20260056', name: '上海汇正财经顾问有限公司', industry: '金融科技', mainBusiness: '智能投顾与财富管理平台', businessScale: '小型', employeeCount: 480, foundedDate: '2018-04', decisionMakerName: '林总', decisionMakerPhone: '13900060008', contactName: '闵经理', contactPhone: '13700060008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-25' },
+    ],
+    'TA-007': [
+      { id: 'CA-057', cdbid: 'CDB-20260057', name: '滴滴出行科技有限公司', industry: '出行', mainBusiness: '网约车与智慧出行平台', businessScale: '大型', employeeCount: 8000, foundedDate: '2012-07', decisionMakerName: '程总', decisionMakerPhone: '13900070001', contactName: '廖经理', contactPhone: '13700070001', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-04' },
+      { id: 'CA-058', cdbid: 'CDB-20260058', name: 'SAP中国研究院', industry: '企业管理软件', mainBusiness: 'ERP云平台及企业应用开发', businessScale: '大型', employeeCount: 3500, foundedDate: '2003-11', decisionMakerName: 'Markus总', decisionMakerPhone: '13900070002', contactName: '查经理', contactPhone: '13700070002', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-02' },
+      { id: 'CA-059', cdbid: 'CDB-20260059', name: '上海华讯网络系统有限公司', industry: '网络技术', mainBusiness: '企业网络架构与系统集成', businessScale: '中型', employeeCount: 1500, foundedDate: '2000-08', decisionMakerName: '宋总', decisionMakerPhone: '13900070003', contactName: '龙经理', contactPhone: '13700070003', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-060', cdbid: 'CDB-20260060', name: '上海汇纳科技股份有限公司', industry: '大数据', mainBusiness: '商业大数据分析与客流感知', businessScale: '小型', employeeCount: 600, foundedDate: '2004-07', decisionMakerName: '张总', decisionMakerPhone: '13900070004', contactName: '黎经理', contactPhone: '13700070004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-22' },
+      { id: 'CA-061', cdbid: 'CDB-20260061', name: '上海大智慧股份有限公司', industry: '金融信息', mainBusiness: '证券信息服务平台', businessScale: '中型', employeeCount: 2000, foundedDate: '2000-12', decisionMakerName: '张总', decisionMakerPhone: '13900070005', contactName: '谷经理', contactPhone: '13700070005', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-01' },
+      { id: 'CA-062', cdbid: 'CDB-20260062', name: '上海维宏电子科技股份有限公司', industry: '运动控制', mainBusiness: '数控系统与运动控制器', businessScale: '中型', employeeCount: 800, foundedDate: '2003-05', decisionMakerName: '汤总', decisionMakerPhone: '13900070006', contactName: '裴经理', contactPhone: '13700070006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-15' },
+      { id: 'CA-063', cdbid: 'CDB-20260063', name: '上海天正软件有限公司', industry: '金融软件', mainBusiness: '银行信贷与风控系统开发', businessScale: '中型', employeeCount: 1000, foundedDate: '2005-09', decisionMakerName: '饶总', decisionMakerPhone: '13900070007', contactName: '薛经理', contactPhone: '13700070007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-08' },
+      { id: 'CA-064', cdbid: 'CDB-20260064', name: '上海企源科技股份有限公司', industry: '管理咨询', mainBusiness: '企业管理咨询与IT实施', businessScale: '中型', employeeCount: 1200, foundedDate: '2001-06', decisionMakerName: '孔总', decisionMakerPhone: '13900070008', contactName: '蒋经理', contactPhone: '13700070008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-30' },
+      { id: 'CA-065', cdbid: 'CDB-20260065', name: '上海讯飞瑞元信息技术有限公司', industry: 'AI', mainBusiness: '智能语音与自然语言处理', businessScale: '中型', employeeCount: 900, foundedDate: '2016-03', decisionMakerName: '刘总', decisionMakerPhone: '13900070009', contactName: '邵经理', contactPhone: '13700070009', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-02' },
+      { id: 'CA-066', cdbid: 'CDB-20260066', name: '上海智臻智能网络科技股份有限公司', industry: 'AI客服', mainBusiness: '智能客服机器人与对话平台', businessScale: '小型', employeeCount: 500, foundedDate: '2015-07', decisionMakerName: '袁总', decisionMakerPhone: '13900070010', contactName: '郝经理', contactPhone: '13700070010', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-10' },
+      { id: 'CA-067', cdbid: 'CDB-20260067', name: '上海中和软件有限公司', industry: '软件外包', mainBusiness: '对日软件外包与系统开发', businessScale: '中型', employeeCount: 1500, foundedDate: '1999-04', decisionMakerName: '陈总', decisionMakerPhone: '13900070011', contactName: '白经理', contactPhone: '13700070011', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-18' },
+      { id: 'CA-068', cdbid: 'CDB-20260068', name: '上海博科资讯股份有限公司', industry: 'ERP', mainBusiness: '企业ERP管理软件研发', businessScale: '中型', employeeCount: 1100, foundedDate: '2000-10', decisionMakerName: '沈总', decisionMakerPhone: '13900070012', contactName: '易经理', contactPhone: '13700070012', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-05' },
+    ],
+    'TA-008': [
+      { id: 'CA-069', cdbid: 'CDB-20260069', name: '上海仪电电子股份有限公司', industry: '电子制造', mainBusiness: '电子元器件与智能仪表制造', businessScale: '中型', employeeCount: 1800, foundedDate: '1993-06', decisionMakerName: '吴总', decisionMakerPhone: '13900080001', contactName: '梁经理', contactPhone: '13700080001', isHighValue: false, cooperationStatus: '已合作', lastVisitDate: '2026-05-05' },
+      { id: 'CA-070', cdbid: 'CDB-20260070', name: '上海飞乐音响股份有限公司', industry: '照明', mainBusiness: 'LED照明及智慧城市照明方案', businessScale: '中型', employeeCount: 1200, foundedDate: '1984-11', decisionMakerName: '李总', decisionMakerPhone: '13900080002', contactName: '关经理', contactPhone: '13700080002', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-28' },
+      { id: 'CA-071', cdbid: 'CDB-20260071', name: '科大讯飞上海有限公司', industry: 'AI', mainBusiness: '智能语音及AI开放平台', businessScale: '大型', employeeCount: 3000, foundedDate: '2010-05', decisionMakerName: '刘总', decisionMakerPhone: '13900080003', contactName: '田经理', contactPhone: '13700080003', isHighValue: true, cooperationStatus: '已合作', lastVisitDate: '2026-05-02' },
+      { id: 'CA-072', cdbid: 'CDB-20260072', name: '上海微盟企业发展有限公司', industry: 'SaaS', mainBusiness: '微信生态SaaS营销云平台', businessScale: '中型', employeeCount: 2200, foundedDate: '2013-04', decisionMakerName: '孙总', decisionMakerPhone: '13900080004', contactName: '华经理', contactPhone: '13700080004', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-22' },
+      { id: 'CA-073', cdbid: 'CDB-20260073', name: '上海有孚网络股份有限公司', industry: '云计算', mainBusiness: '云计算数据中心与云服务', businessScale: '中型', employeeCount: 900, foundedDate: '2012-08', decisionMakerName: '安总', decisionMakerPhone: '13900080005', contactName: '邓经理', contactPhone: '13700080005', isHighValue: false, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-18' },
+      { id: 'CA-074', cdbid: 'CDB-20260074', name: '上海百事通信息技术有限公司', industry: '法律科技', mainBusiness: '法律咨询服务平台', businessScale: '中型', employeeCount: 800, foundedDate: '2006-03', decisionMakerName: '冯总', decisionMakerPhone: '13900080006', contactName: '余经理', contactPhone: '13700080006', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-10' },
+      { id: 'CA-075', cdbid: 'CDB-20260075', name: '上海复深蓝软件股份有限公司', industry: '金融科技', mainBusiness: '保险核心系统与金融软件测试', businessScale: '中型', employeeCount: 1500, foundedDate: '2007-09', decisionMakerName: '杨总', decisionMakerPhone: '13900080007', contactName: '康经理', contactPhone: '13700080007', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-05' },
+      { id: 'CA-076', cdbid: 'CDB-20260076', name: '上海凯诘电子商务股份有限公司', industry: '电商', mainBusiness: '品牌电商代运营与数字营销', businessScale: '中型', employeeCount: 1000, foundedDate: '2011-06', decisionMakerName: '许总', decisionMakerPhone: '13900080008', contactName: '贺经理', contactPhone: '13700080008', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-03-28' },
+      { id: 'CA-077', cdbid: 'CDB-20260077', name: '上海银联商务有限公司', industry: '支付', mainBusiness: '综合支付与信息服务', businessScale: '大型', employeeCount: 4500, foundedDate: '2002-12', decisionMakerName: '田总', decisionMakerPhone: '13900080009', contactName: '严经理', contactPhone: '13700080009', isHighValue: true, cooperationStatus: '洽谈中', lastVisitDate: '2026-04-25' },
+      { id: 'CA-078', cdbid: 'CDB-20260078', name: '上海网鱼信息科技有限公司', industry: '电竞', mainBusiness: '网咖连锁与电竞空间运营', businessScale: '中型', employeeCount: 2000, foundedDate: '1998-10', decisionMakerName: '黄总', decisionMakerPhone: '13900080010', contactName: '牛经理', contactPhone: '13700080010', isHighValue: false, cooperationStatus: '待跟进', lastVisitDate: '2026-04-15' },
+    ],
+  }
+
+  const pool = companyPool[assocId] || []
+  return pool.map(c => {
+    const visitCount = (c.id.charCodeAt(c.id.length - 1) + assocId.charCodeAt(assocId.length - 1)) % 4
+    const visitRecords: CompanyVisitRecord[] = []
+    const visitTypes = ['上门拜访', '电话沟通', '腾讯会议']
+    const baseDate = new Date('2026-01-01')
+    for (let i = 0; i < visitCount; i++) {
+      const vDate = new Date(baseDate)
+      vDate.setDate(vDate.getDate() + (c.id.charCodeAt(3) + i * 45) % 150)
+      visitRecords.push({
+        id: `VR-${c.id}-${i + 1}`,
+        visitDate: vDate.toISOString().slice(0, 10),
+        visitTarget: c.decisionMakerName,
+        visitType: visitTypes[i % 3],
+        attendees: `黄俊、${c.contactName}`,
+        summary: `本次拜访围绕"${c.mainBusiness.slice(0, 12)}"业务展开，与${c.decisionMakerName}进行了深入沟通。客户对联想企业级产品线表现出较强兴趣，重点关注产品性能与售后服务响应速度。`,
+        feedback: `${c.decisionMakerName}表示目前IT设备采购周期较长，联想的供货速度具有竞争优势。同时对DaaS租赁模式表示了兴趣，希望获得更详细的服务方案。`,
+        nextPlan: `${i + 1}. 发送${i === 0 ? 'ThinkPad T14 Gen 6详细报价单' : i === 1 ? 'ThinkSystem服务器方案' : '产品演示预约'}; ${i + 2}. 安排后续深度沟通`,
+      })
+    }
+    return { ...c, visitRecords }
+  })
+}
+
+const assocWithCompanies = assocMarkerData.map(entry => ({
+  ...entry,
+  companies: generateCompaniesForAssoc(entry.id),
+}))
+
+function getCompanyById(companyId: string): AssocCompany | undefined {
+  for (const entry of assocWithCompanies) {
+    const c = entry.companies.find(co => co.id === companyId)
+    if (c) return c
+  }
+  return undefined
+}
+
+function getCompanyVisitLog(companyId: string): CompanyVisitRecord[] {
+  const company = getCompanyById(companyId)
+  return company?.visitRecords || []
+}
+
+function getFilteredCompanies(
+  companies: AssocCompany[],
+  search: string, industryFilter: string,
+  highValueFilter: string, cooperationFilter: string
+): AssocCompany[] {
+  return companies.filter(c => {
+    if (search && !c.name.includes(search)) return false
+    if (industryFilter !== '全部' && c.industry !== industryFilter) return false
+    if (highValueFilter === '是' && !c.isHighValue) return false
+    if (highValueFilter === '否' && c.isHighValue) return false
+    if (cooperationFilter !== '全部' && c.cooperationStatus !== cooperationFilter) return false
+    return true
+  })
+}
+
+function getCompanyStats(companies: AssocCompany[]) {
+  return {
+    total: companies.length,
+    highValue: companies.filter(c => c.isHighValue).length,
+    cooperating: companies.filter(c => c.cooperationStatus === '已合作').length,
+    negotiating: companies.filter(c => c.cooperationStatus === '洽谈中').length,
+    pending: companies.filter(c => c.cooperationStatus === '待跟进').length,
+  }
+}
+
+function getAssocById(assocId: string): AssocMarkerEntry | undefined {
+  return assocMarkerData.find(a => a.id === assocId)
+}
+
+function getAssocWithCompanies(assocId: string) {
+  return assocWithCompanies.find(a => a.id === assocId)
+}
 
 const partnerMarkerData: {
   id: string; name: string; level: string; value: [number, number];
@@ -101,20 +290,6 @@ interface DrillState {
 }
 
 // Mock drill-down data generators
-function getAssocMembers(assocId: string) {
-  const members: { id: string; name: string; industry: string; contact: string; potential: string; status: string }[] = [
-    { id: 'M-001', name: '中芯国际集成电路', industry: '半导体', contact: '黄总 138****1234', potential: '高', status: '已合作' },
-    { id: 'M-002', name: '韦尔股份', industry: '芯片设计', contact: '马总 186****5678', potential: '高', status: '洽谈中' },
-    { id: 'M-003', name: '华勤技术', industry: 'ODM', contact: '赵总监 139****9012', potential: '高', status: '已合作' },
-    { id: 'M-004', name: '盛美半导体', industry: '半导体设备', contact: '王总 138****6789', potential: '中', status: '待跟进' },
-    { id: 'M-005', name: '芯原股份', industry: '芯片设计服务', contact: '陈总 139****4567', potential: '中', status: '已合作' },
-    { id: 'M-006', name: '上海微电子', industry: '光刻设备', contact: '林主任 136****0123', potential: '高', status: '洽谈中' },
-    { id: 'M-007', name: '安集微电子', industry: '半导体材料', contact: '赵总监 177****3456', potential: '中', status: '待跟进' },
-    { id: 'M-008', name: '智元机器人', industry: '具身智能', contact: '李经理 186****8901', potential: '低', status: '待跟进' },
-  ]
-  return members.filter((_, i) => (assocId.charCodeAt(assocId.length - 1) + i) % 3 !== 0).slice(0, 5 + (assocId.charCodeAt(assocId.length - 1) % 4))
-}
-
 function getPartnerOrders(partnerId: string) {
   const orders: { id: string; product: string; quantity: number; amount: number; status: string; date: string }[] = [
     { id: 'E011847924', product: 'ThinkPad X1 Carbon Gen 12', quantity: 50, amount: 625000, status: '排产中', date: '2026-05-01' },
@@ -402,7 +577,6 @@ export default function TerritoryDashboard() {
   const [visitResult, setVisitResult] = useState<{ summary: string; nextPlan: string } | null>(null)
   const [visits, setVisits] = useState(_mockVisitsData)
   const [tasks, setTasks] = useState(_mockTasksData)
-  const [assocData] = useState(_assocData)
   const [partnerData] = useState(_partnerData)
   const [assocFilter, setAssocFilter] = useState<string>('全部')
   const [assocSearch, setAssocSearch] = useState('')
@@ -415,7 +589,15 @@ export default function TerritoryDashboard() {
   // Drill-down modal state
   const [drill, setDrill] = useState<DrillState>({ open: false, level: 'assoc', title: '', data: null })
 
-  const openAssocDrill = (assoc: TwoAssociationsItem) => {
+  // Company list filtering state (inside the assoc drill modal)
+  const [companySearch, setCompanySearch] = useState('')
+  const [companyIndustryFilter, setCompanyIndustryFilter] = useState('全部')
+  const [companyHighValueFilter, setCompanyHighValueFilter] = useState('全部')
+  const [companyCooperationFilter, setCompanyCooperationFilter] = useState('全部')
+  // Visit log drill-down
+  const [visitLogCompanyId, setVisitLogCompanyId] = useState<string | null>(null)
+
+  const openAssocDrill = (assoc: AssocMarkerEntry) => {
     setDrill({ open: true, level: 'assoc', title: assoc.name, data: assoc })
   }
   const openPartnerDrill = (partner: ChannelPartner) => {
@@ -427,7 +609,14 @@ export default function TerritoryDashboard() {
   const openTaskDrill = (task: TaskItem) => {
     setDrill({ open: true, level: 'task', title: '任务详情', data: task })
   }
-  const closeDrill = () => setDrill(prev => ({ ...prev, open: false }))
+  const closeDrill = () => {
+    setDrill(prev => ({ ...prev, open: false }))
+    setCompanySearch('')
+    setCompanyIndustryFilter('全部')
+    setCompanyHighValueFilter('全部')
+    setCompanyCooperationFilter('全部')
+    setVisitLogCompanyId(null)
+  }
 
   const handleVisitRecord = async () => {
     if (!visitNotes.trim() || !recordModal) return
@@ -452,7 +641,7 @@ export default function TerritoryDashboard() {
     return industryMatch && potentialMatch && searchMatch
   })
 
-  const filteredAssocs = assocData.filter(a => {
+  const filteredAssocs = assocMarkerData.filter(a => {
     if (assocFilter !== '全部' && a.status !== assocFilter) return false
     if (assocSearch && !a.name.includes(assocSearch)) return false
     return true
@@ -524,9 +713,19 @@ export default function TerritoryDashboard() {
             </div>
             <div className="scrollable-list" style={{ flex: 1 }}>
               {filteredAssocs.map(item => (
-                <div key={item.id} className="assoc-item" onClick={() => openAssocDrill(item)} style={{ cursor: 'pointer' }}>
-                  <div className="assoc-left"><span className={`assoc-type ${item.type === '协会' ? 'type-assoc' : item.type === '商会' ? 'type-chamber' : 'type-park'}`}>{item.type}</span><span className="assoc-name">{item.name}</span></div>
-                  <div className="assoc-right"><span>👥 {item.memberCount}家</span><span>🎯 {item.potentialCustomers}潜客</span><span className={`assoc-status ${item.status === '已签约' ? 'as-signed' : item.status === '洽谈中' ? 'as-negotiating' : 'as-pending'}`}>{item.status}</span></div>
+                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'background 150ms', background: 'transparent', borderBottom: '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className={`assoc-type ${item.type === '协会' ? 'type-assoc' : item.type === '商会' ? 'type-chamber' : 'type-park'}`}>{item.type}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--accent)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openAssocDrill(item) }}>{item.name}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--brand-600)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openAssocDrill(item) }}>{item.memberCount} 家</span>
+                    <span className={`assoc-status ${item.status === '已签约' ? 'as-signed' : item.status === '洽谈中' ? 'as-negotiating' : 'as-pending'}`}>{item.status}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
+                    <span>👤 {item.contact}</span>
+                    <span>📞 {item.contactPhone}</span>
+                    <span>📍 {item.address}</span>
+                    <span>🤝 {item.signedPartner || '——'}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -646,58 +845,118 @@ export default function TerritoryDashboard() {
       {/* Unified Drill-down Modal */}
       {drill.open && (
         <div className="modal-overlay" onClick={closeDrill}>
-          <div className="visit-modal drill-modal" onClick={e => e.stopPropagation()}>
+          <div className="visit-modal drill-modal" onClick={e => e.stopPropagation()} style={drill.level === 'assoc' ? { width: 900, maxWidth: '95vw' } : undefined}>
             <div className="visit-modal-head">
               <span className="visit-modal-title">{drill.title}</span>
               <button className="modal-close" onClick={closeDrill}>✕</button>
             </div>
             <div className="visit-modal-body">
               {drill.level === 'assoc' && (() => {
-                const assoc = drill.data as TwoAssociationsItem
-                const members = getAssocMembers(assoc.id)
+                const assocId = (drill.data as AssocMarkerEntry).id
+                const assocEntry = getAssocWithCompanies(assocId)
+                if (!assocEntry) return null
+                const stats = getCompanyStats(assocEntry.companies)
+                const allIndustries = [...new Set(assocEntry.companies.map(c => c.industry))]
+                const filtered = getFilteredCompanies(assocEntry.companies, companySearch, companyIndustryFilter, companyHighValueFilter, companyCooperationFilter)
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>类型</div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.type}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                      <div style={{ background: 'var(--bg-body)', padding: '10px 12px', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>总企业数</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--brand-600)' }}>{stats.total}</div>
                       </div>
-                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>联系人</div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.contactPerson}</div>
+                      <div style={{ background: 'var(--bg-body)', padding: '10px 12px', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>⭐ 高价值客户</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b' }}>{stats.highValue}</div>
                       </div>
-                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>状态</div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{assoc.status}</div>
+                      <div style={{ background: 'var(--bg-body)', padding: '10px 12px', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>已合作</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--success)' }}>{stats.cooperating}</div>
                       </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>会员数量</div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--brand-600)' }}>{assoc.memberCount}家</div>
+                      <div style={{ background: 'var(--bg-body)', padding: '10px 12px', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>洽谈中</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--warning)' }}>{stats.negotiating}</div>
                       </div>
-                      <div style={{ background: 'var(--bg-body)', padding: 12, borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>潜客数量</div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{assoc.potentialCustomers}家</div>
+                      <div style={{ background: 'var(--bg-body)', padding: '10px 12px', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>待跟进</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-muted)' }}>{stats.pending}</div>
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📋 会员企业清单（{members.length}家）</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {members.map(m => (
-                          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 6, fontSize: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600 }}>{m.industry}</span>
-                              <span style={{ fontWeight: 500 }}>{m.name}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)' }}>
-                              <span>{m.contact}</span>
-                              <span style={{ fontWeight: 600, color: m.potential === '高' ? 'var(--danger)' : m.potential === '中' ? 'var(--warning)' : 'var(--text-muted)' }}>{m.potential}潜客</span>
-                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: m.status === '已合作' ? 'var(--success-light)' : m.status === '洽谈中' ? 'var(--warning-light)' : 'var(--bg-surface)', color: m.status === '已合作' ? 'var(--success)' : m.status === '洽谈中' ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 600 }}>{m.status}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <input
+                        placeholder="搜索公司名称..."
+                        value={companySearch}
+                        onChange={e => setCompanySearch(e.target.value)}
+                        style={{ padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--bg-body)', color: 'var(--text-primary)', outline: 'none', flex: '0 0 180px' }}
+                      />
+                      <select value={companyIndustryFilter} onChange={e => setCompanyIndustryFilter(e.target.value)} style={{ padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--bg-body)', color: 'var(--text-primary)', outline: 'none' }}>
+                        <option value="全部">全部行业</option>
+                        {allIndustries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                      </select>
+                      <select value={companyHighValueFilter} onChange={e => setCompanyHighValueFilter(e.target.value)} style={{ padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--bg-body)', color: 'var(--text-primary)', outline: 'none' }}>
+                        <option value="全部">高价值客户（全部）</option>
+                        <option value="是">是</option>
+                        <option value="否">否</option>
+                      </select>
+                      <select value={companyCooperationFilter} onChange={e => setCompanyCooperationFilter(e.target.value)} style={{ padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--bg-body)', color: 'var(--text-primary)', outline: 'none' }}>
+                        <option value="全部">全部状态</option>
+                        <option value="已合作">已合作</option>
+                        <option value="洽谈中">洽谈中</option>
+                        <option value="待跟进">待跟进</option>
+                      </select>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>共 {filtered.length} 家</span>
+                    </div>
+                    <div style={{ overflowX: 'auto', maxHeight: 400, overflowY: 'auto' }}>
+                      <table style={{ minWidth: 1200, width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                        <thead>
+                          <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>CDBID</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>公司名称</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>行业</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>主营业务</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>营业规模</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>员工人数</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>成立时间</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>决策人</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>决策人电话</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>联系人</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>联系人电话</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>⭐高价值</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>合作状态</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '2px solid var(--border-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>最近拜访</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map(c => (
+                            <tr key={c.id} style={{ background: c.isHighValue ? 'rgba(255, 215, 0, 0.08)' : 'transparent' }}>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.cdbid}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', fontWeight: 500 }}>{c.name}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600 }}>{c.industry}</span>
+                              </td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.mainBusiness}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.businessScale}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.employeeCount}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.foundedDate}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.decisionMakerName}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.decisionMakerPhone}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.contactName}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.contactPhone}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>{c.isHighValue ? '⭐是' : '否'}</td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, background: c.cooperationStatus === '已合作' ? 'var(--success-light)' : c.cooperationStatus === '洽谈中' ? 'var(--warning-light)' : 'var(--bg-surface)', color: c.cooperationStatus === '已合作' ? 'var(--success)' : c.cooperationStatus === '洽谈中' ? 'var(--warning)' : 'var(--text-muted)' }}>{c.cooperationStatus}</span>
+                              </td>
+                              <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>
+                                {c.lastVisitDate ? (
+                                  <span style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setVisitLogCompanyId(c.id)}>{c.lastVisitDate}</span>
+                                ) : (
+                                  <span style={{ color: 'var(--text-muted)' }}>——</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )
@@ -876,6 +1135,50 @@ export default function TerritoryDashboard() {
           </div>
         </div>
       )}
+
+      {visitLogCompanyId && (() => {
+        const logs = getCompanyVisitLog(visitLogCompanyId)
+        const company = getCompanyById(visitLogCompanyId)
+        return (
+          <div className="modal-overlay" onClick={() => setVisitLogCompanyId(null)}>
+            <div className="visit-modal" onClick={e => e.stopPropagation()} style={{ width: 600, maxWidth: '95vw' }}>
+              <div className="visit-modal-head">
+                <span className="visit-modal-title">📋 拜访记录 · {company?.name || ''}</span>
+                <button className="modal-close" onClick={() => setVisitLogCompanyId(null)}>✕</button>
+              </div>
+              <div className="visit-modal-body" style={{ maxHeight: 450, overflowY: 'auto' }}>
+                {logs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 14 }}>暂无拜访记录</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {logs.map(log => (
+                      <div key={log.id} style={{ background: 'var(--bg-body)', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>📅 {log.visitDate}</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>拜访对象：{log.visitTarget}</span>
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600 }}>
+                            {log.visitType === '上门拜访' ? '🚶' : log.visitType === '电话沟通' ? '📞' : '💻'} {log.visitType}
+                          </span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>参与：{log.attendees}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📝 拜访摘要：</span>{log.summary}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>💬 客户反馈：</span>{log.feedback}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>🔜 下一步计划/复盘：</span>{log.nextPlan}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {recordModal && (
         <div className="modal-overlay" onClick={() => !visitLoading && setRecordModal(null)}>
